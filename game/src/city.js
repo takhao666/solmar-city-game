@@ -167,6 +167,22 @@ export function randomRoadPoint(rng) {
   return { x: x + (rng() - 0.5) * (ROAD_WIDTH - 36), y: 120 + rng() * (WORLD - 240) };
 }
 
+/** A point on a road a short chase from (x, y): near enough to join the action fast. */
+export function randomRoadPointNear(rng, x, y) {
+  const centres = roadCentres();
+  for (let tries = 0; tries < 12; tries += 1) {
+    const vertical = rng() < 0.5;
+    const c = centres[Math.floor(rng() * centres.length)];
+    const dir = rng() < 0.5 ? -1 : 1;
+    const along = (vertical ? y : x) + dir * (520 + rng() * 420);
+    const off = (rng() - 0.5) * (ROAD_WIDTH - 36);
+    const px = vertical ? c + off : clamp(along, 120, WORLD - 120);
+    const py = vertical ? clamp(along, 120, WORLD - 120) : c + off;
+    if (Math.hypot(px - x, py - y) >= 480) return { x: px, y: py };
+  }
+  return randomRoadPoint(rng);
+}
+
 /** A random point on a sidewalk, for spawning pedestrians. */
 export function randomSidewalkPoint(rng) {
   const p = randomRoadPoint(rng);
@@ -267,17 +283,42 @@ export function drawCity(ctx, city, cam, viewW, viewH) {
     }
     ctx.fillStyle = '#f2ead8';
     ctx.fillRect(marina.x, marina.y + marina.h - 26, marina.w, 26);
+    // Moored boats: pale hulls with a coloured cabin, riding the water.
+    const boats = [
+      { x: marina.x + 46, y: marina.y + 62, w: 66, h: 20, cabin: '#d94f3d' },
+      { x: marina.x + 186, y: marina.y + 158, w: 74, h: 22, cabin: '#3d7dd9' },
+      { x: marina.x + 306, y: marina.y + 72, w: 58, h: 18, cabin: '#e8c33a' },
+    ];
+    for (const boat of boats) {
+      ctx.fillStyle = '#f5f0e6';
+      ctx.beginPath();
+      ctx.roundRect(boat.x, boat.y, boat.w, boat.h, 7);
+      ctx.fill();
+      ctx.fillStyle = boat.cabin;
+      ctx.fillRect(boat.x + boat.w / 2 - 10, boat.y + 4, 20, boat.h - 8);
+      ctx.fillStyle = 'rgba(20,24,32,0.7)';
+      ctx.fillRect(boat.x + boat.w / 2 - 1, boat.y - 12, 2, 12);
+    }
   }
 
-  // Buildings with roof shading.
+  // Buildings with roof shading, a soft shadow, and lit windows.
   for (const b of city.buildings) {
     if (b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) continue;
+    ctx.fillStyle = 'rgba(60,40,20,0.20)';
+    ctx.fillRect(b.x + 7, b.y + 9, b.w, b.h);
     ctx.fillStyle = b.color;
     ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = b.roof;
     ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, b.h - 16);
     ctx.fillStyle = 'rgba(255,255,255,0.16)';
     ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, 10);
+    // Window panes on the roof face, spaced off the building's own grid.
+    ctx.fillStyle = 'rgba(255,244,200,0.55)';
+    for (let wx = b.x + 24; wx + 14 < b.x + b.w - 8; wx += 36) {
+      for (let wy = b.y + 26; wy + 12 < b.y + b.h - 8; wy += 32) {
+        ctx.fillRect(wx, wy, 14, 12);
+      }
+    }
   }
 
   // Named landmarks with labels.

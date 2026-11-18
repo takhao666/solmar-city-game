@@ -109,10 +109,11 @@ export function drawMinimap(ctx, game, viewW, viewH) {
   ctx.beginPath();
   ctx.rect(x0, y0, size, size);
   ctx.clip();
-  ctx.fillStyle = '#2e2a24';
+  // A warm map face, like the sun-baked ground, so the roads read at a glance.
+  ctx.fillStyle = '#8a7a5c';
   ctx.fillRect(x0, y0, size, size);
-  ctx.strokeStyle = '#6b6f78';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#3a332a';
+  ctx.lineWidth = 2.5;
   for (const c of game.city.centres) {
     ctx.beginPath();
     ctx.moveTo(x0, y0 + c * scale);
@@ -156,9 +157,9 @@ export function drawMinimap(ctx, game, viewW, viewH) {
   ctx.rotate(player.angle);
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.moveTo(6, 0);
-  ctx.lineTo(-4, -4);
-  ctx.lineTo(-4, 4);
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-5, -5);
+  ctx.lineTo(-5, 5);
   ctx.closePath();
   ctx.fill();
   ctx.restore();

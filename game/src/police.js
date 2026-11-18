@@ -4,7 +4,7 @@
 // never a one-shot: an officer's touch costs a little health over time.
 
 import { clamp, dist, angleDiff, angleTo, mulberry32, pick } from './util.js';
-import { WORLD, roadCentres, randomRoadPoint } from './city.js';
+import { WORLD, roadCentres, randomRoadPointNear } from './city.js';
 import { makeCar, POLICE_COLOR } from './vehicles.js';
 
 export const MAX_WANTED = 5;
@@ -44,9 +44,9 @@ export function policeQuota(wanted) {
   };
 }
 
-/** Spawn police near the player, on a road, chasing from a short distance away. */
+/** Spawn police near the player, on a road a short chase away, so the pursuit forms fast. */
 export function spawnPoliceCar(game, rng) {
-  const p = randomRoadPoint(rng);
+  const p = randomRoadPointNear(rng, game.player.x, game.player.y);
   const car = makeCar(p.x, p.y, rng() * Math.PI * 2, POLICE_COLOR, 'police');
   car.maxSpeed = 380;
   car.accel = 320;
@@ -93,15 +93,17 @@ export function maintainPolice(game, rng, dt) {
   }
 }
 
-/** A police car chases the player: steer toward them, ram when close. */
+/** A police car chases the player: steer toward them, but hold a pursuit distance
+ * instead of ramming them — full speed far away, half speed closing in, stopped
+ * inside 160px, so a chase reads as a chase and cruisers never stack on the player. */
 export function updatePoliceCar(car, game, dt) {
   const player = game.player;
   const target = player.inCar ? player.car : player;
   const want = angleTo(car.x, car.y, target.x, target.y);
   car.angle += clamp(angleDiff(car.angle, want), -2.4 * dt, 2.4 * dt);
   const d = dist(car.x, car.y, target.x, target.y);
-  const targetSpeed = d > 260 ? car.maxSpeed : car.maxSpeed * 0.55;
-  car.speed += clamp(targetSpeed - car.speed, -340 * dt, 300 * dt);
+  const targetSpeed = d > 300 ? car.maxSpeed : d > 160 ? car.maxSpeed * 0.5 : 0;
+  car.speed += clamp(targetSpeed - car.speed, -420 * dt, 300 * dt);
   car.x += Math.cos(car.angle) * car.speed * dt;
   car.y += Math.sin(car.angle) * car.speed * dt;
   car.x = clamp(car.x, 50, WORLD - 50);

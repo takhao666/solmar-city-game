@@ -205,12 +205,22 @@ export function updateParticles(game, dt) {
   }
 }
 
-/** Draw bullets, enemies and particles. */
+/** Draw bullets, enemies and particles. Bullets are bright tracer streaks along
+ * their flight, so a firefight reads at a glance. */
 export function drawCombat(ctx, game) {
   for (const bullet of game.bullets) {
-    ctx.fillStyle = bullet.friendly ? '#ffd76a' : '#ff5c5c';
+    const tx = bullet.x - bullet.vx * 0.035;
+    const ty = bullet.y - bullet.vy * 0.035;
+    ctx.strokeStyle = bullet.friendly ? '#ffd76a' : '#ff5c5c';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(bullet.x, bullet.y, 3.5, 0, Math.PI * 2);
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(bullet.x, bullet.y);
+    ctx.stroke();
+    ctx.fillStyle = bullet.friendly ? '#fff3c4' : '#ffb3b3';
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
   for (const enemy of game.enemies) {

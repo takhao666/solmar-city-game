@@ -66,11 +66,11 @@ export function createGame(seed) {
     game.player.ammo = WEAPONS.pistol.ammo;
   }
   // A starting fleet: parked and rolling traffic around the spawn.
-  for (let i = 0; i < 14; i += 1) {
+  for (let i = 0; i < 20; i += 1) {
     const car = spawnTrafficCar(rng, SPAWN.x, SPAWN.y);
     if (dist(car.x, car.y, SPAWN.x, SPAWN.y) > 500) game.cars.push(car);
   }
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 55; i += 1) {
     const ped = makePedestrian(rng);
     if (dist(ped.x, ped.y, SPAWN.x, SPAWN.y) < 1300) game.peds.push(ped);
   }
@@ -102,11 +102,11 @@ export function resetWorld(game) {
   game.pendingRestart = null;
   game.camera = { x: SPAWN.x, y: SPAWN.y };
   game.screen = 'play';
-  for (let i = 0; i < 16; i += 1) {
+  for (let i = 0; i < 20; i += 1) {
     const car = spawnTrafficCar(game.rng, SPAWN.x, SPAWN.y);
     if (dist(car.x, car.y, SPAWN.x, SPAWN.y) > 420) game.cars.push(car);
   }
-  for (let i = 0; i < 45; i += 1) {
+  for (let i = 0; i < 55; i += 1) {
     const ped = makePedestrian(game.rng);
     if (dist(ped.x, ped.y, SPAWN.x, SPAWN.y) < 1300) game.peds.push(ped);
   }
@@ -206,7 +206,7 @@ export function stepWorld(game, dt) {
   }
   updatePedestrians(game.peds, dt, game.rng, danger);
   maintainPedestrians(game.peds, game.rng, game.camera.x, game.camera.y);
-  maintainTraffic(game.cars, game.rng, game.camera.x, game.camera.y, 22);
+  maintainTraffic(game.cars, game.rng, game.camera.x, game.camera.y, 30);
 
   // Police and wanted.
   maintainPolice(game, game.rng, dt);
@@ -258,6 +258,8 @@ export function boot(canvas) {
     game.screen = stageShot(shot, game, stepWorld);
     game.frozen = true;
     render(game, ctx);
+    // A resize after load clears the canvas; repaint the staged frame when that happens.
+    window.addEventListener('resize', () => render(game, ctx));
     window.__solmar = { game, shot, staged: true };
     return game;
   }

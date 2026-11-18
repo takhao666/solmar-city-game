@@ -5,14 +5,15 @@
 import { clamp, dist, mulberry32, pick } from './util.js';
 import { WORLD, randomSidewalkPoint } from './city.js';
 
-export const MAX_PEDESTRIANS = 70;
+export const MAX_PEDESTRIANS = 90;
 
 const SHIRT_COLORS = ['#e07b39', '#3d7dd9', '#7ac74f', '#c0a0d8', '#e8c33a', '#d94f3d', '#39c0c0', '#e8e8e8'];
 const SKIN_COLORS = ['#e8b98a', '#c98d5f', '#8a5a3b', '#f0c8a0'];
 
 let nextPedId = 1;
 
-/** Make one pedestrian near (x, y), or anywhere on a sidewalk when no point is given. */
+/** Make one pedestrian near (x, y), or anywhere on a sidewalk when no point is given.
+ * `label` names a story character (drawn above them); `stand` keeps them in place. */
 export function makePedestrian(rng, x, y) {
   const p = x !== undefined ? { x, y } : randomSidewalkPoint(rng);
   return {
@@ -28,6 +29,8 @@ export function makePedestrian(rng, x, y) {
     fleeing: false,
     dead: false,
     panic: 0,
+    label: null,
+    stand: false,
   };
 }
 
@@ -35,6 +38,7 @@ export function makePedestrian(rng, x, y) {
 export function updatePedestrians(peds, dt, rng, danger) {
   for (const ped of peds) {
     if (ped.dead) continue;
+    if (ped.stand) continue; // A named character waiting at their spot stays put.
     ped.retarget -= dt;
     ped.panic = Math.max(0, ped.panic - dt);
     let fleeX = 0;
@@ -104,4 +108,17 @@ export function drawPedestrian(ctx, ped, time) {
   ctx.arc(4 + bob * 0.3, 0, 6, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+  // A named story character gets a tag above their head.
+  if (ped.label) {
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    const w = ctx.measureText(ped.label).width + 12;
+    ctx.fillStyle = 'rgba(10,10,14,0.75)';
+    ctx.beginPath();
+    ctx.roundRect(ped.x - w / 2, ped.y - 34, w, 16, 5);
+    ctx.fill();
+    ctx.fillStyle = '#ffd76a';
+    ctx.fillText(ped.label, ped.x, ped.y - 22);
+    ctx.textAlign = 'left';
+  }
 }
