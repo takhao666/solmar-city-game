@@ -66,6 +66,10 @@ export function createAudio() {
     },
     shot() { this.noise(0.12, 0.3, 2500); this.tone(180, 0.08, 'square', 0.12, 60); },
     punch() { this.noise(0.08, 0.2, 900); },
+    /** A two-tone car horn for the player's car (H). */
+    horn() { this.tone(370, 0.16, 'square', 0.12); this.tone(466, 0.16, 'square', 0.1); },
+    /** Tyre scrub for a handbrake slide. */
+    skid() { this.noise(0.18, 0.16, 500); },
     pickup() { this.tone(660, 0.09, 'sine', 0.18); this.tone(990, 0.12, 'sine', 0.15); },
     cash() { this.tone(880, 0.1, 'sine', 0.16); this.tone(1174, 0.14, 'sine', 0.16); this.tone(1568, 0.18, 'sine', 0.14); },
     siren() { this.tone(700, 0.4, 'sine', 0.07, 950); },

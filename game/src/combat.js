@@ -40,6 +40,7 @@ export function makeEnemy(x, y, rng) {
     maxHealth: 55,
     shootCooldown: 0.6 + rng() * 0.8,
     retarget: 0,
+    flinch: 0, // Seconds of stagger after a hit: no shooting, half speed.
     dead: false,
     shirt: '#5a2e6e',
   };
@@ -76,6 +77,7 @@ export function updateBullets(game, dt) {
     if (game.city && hitsBuildingPoint(game.city, bullet.x, bullet.y)) {
       bullet.dead = true;
       game.particles.push(makeSpark(bullet.x, bullet.y));
+      game.particles.push(makeBurst(bullet.x, bullet.y, '#c8b28a')); // Dust where the round hits the wall.
       continue;
     }
     if (bullet.friendly) {
@@ -84,7 +86,9 @@ export function updateBullets(game, dt) {
         if (distSq(bullet.x, bullet.y, enemy.x, enemy.y) < (enemy.radius + 4) * (enemy.radius + 4)) {
           enemy.health -= bullet.damage;
           bullet.dead = true;
+          enemy.flinch = 0.35; // A hit staggers them: the fight visibly lands.
           game.particles.push(makeSpark(bullet.x, bullet.y));
+          game.particles.push(makeBurst(bullet.x, bullet.y, '#ffd76a'));
           if (enemy.health <= 0) {
             enemy.dead = true;
             game.particles.push(makeBurst(enemy.x, enemy.y, '#c94f6e'));
@@ -157,23 +161,25 @@ export function updateEnemies(game, dt, rng) {
     if (enemy.dead) continue;
     enemy.retarget -= dt;
     enemy.shootCooldown -= dt;
+    enemy.flinch = Math.max(0, (enemy.flinch || 0) - dt);
     const d = dist(enemy.x, enemy.y, player.x, player.y);
     if (enemy.retarget <= 0) {
       enemy.retarget = 0.7 + rng() * 0.9;
       const strafe = rng() < 0.5 ? 1 : -1;
       enemy.angle = angleTo(enemy.x, enemy.y, player.x, player.y) + strafe * (0.5 + rng() * 0.5);
     }
+    const pace = enemy.flinch > 0 ? 0.45 : 1; // Staggered enemies barely move.
     if (d > 260) {
-      enemy.x += Math.cos(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * dt;
-      enemy.y += Math.sin(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * dt;
+      enemy.x += Math.cos(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * pace * dt;
+      enemy.y += Math.sin(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * pace * dt;
     } else if (d < 130) {
-      enemy.x -= Math.cos(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * 0.6 * dt;
-      enemy.y -= Math.sin(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * 0.6 * dt;
+      enemy.x -= Math.cos(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * 0.6 * pace * dt;
+      enemy.y -= Math.sin(angleTo(enemy.x, enemy.y, player.x, player.y)) * enemy.speed * 0.6 * pace * dt;
     } else {
-      enemy.x += Math.cos(enemy.angle) * enemy.speed * 0.5 * dt;
-      enemy.y += Math.sin(enemy.angle) * enemy.speed * 0.5 * dt;
+      enemy.x += Math.cos(enemy.angle) * enemy.speed * 0.5 * pace * dt;
+      enemy.y += Math.sin(enemy.angle) * enemy.speed * 0.5 * pace * dt;
     }
-    if (enemy.shootCooldown <= 0 && d < 480) {
+    if (enemy.flinch <= 0 && enemy.shootCooldown <= 0 && d < 480) {
       enemy.shootCooldown = 0.9 + rng() * 0.7;
       const aim = angleTo(enemy.x, enemy.y, player.x, player.y) + (rng() - 0.5) * 0.35;
       game.bullets.push(makeBullet(enemy.x, enemy.y, aim, 520, 6, false));
@@ -211,6 +217,14 @@ export function drawCombat(ctx, game) {
   for (const bullet of game.bullets) {
     const tx = bullet.x - bullet.vx * 0.035;
     const ty = bullet.y - bullet.vy * 0.035;
+    // A wide faint glow under the bright core: the tracer reads even shrunk.
+    ctx.strokeStyle = bullet.friendly ? 'rgba(255,215,106,0.35)' : 'rgba(255,92,92,0.35)';
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(bullet.x, bullet.y);
+    ctx.stroke();
     ctx.strokeStyle = bullet.friendly ? '#ffd76a' : '#ff5c5c';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';

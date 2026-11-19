@@ -80,6 +80,11 @@ export function updatePlayerOnFoot(game, input, dt, cam) {
     if (best) {
       best.health -= WEAPONS.fists.damage;
       if (best.health <= 0) best.dead = true;
+      // Knockback: the punch visibly shoves them back.
+      const ka = angleTo(player.x, player.y, best.x, best.y);
+      best.x = clamp(best.x + Math.cos(ka) * 26, 40, WORLD - 40);
+      best.y = clamp(best.y + Math.sin(ka) * 26, 40, WORLD - 40);
+      resolveBuildings(game.city, best);
       game.particles.push({ x: best.x, y: best.y, vx: 0, vy: 0, life: 0.2, maxLife: 0.2, color: '#ffd76a', size: 6, kind: 'spark' });
     }
   }
@@ -105,6 +110,11 @@ export function updatePlayerOnFoot(game, input, dt, cam) {
       player.y + Math.sin(angle) * 18,
       angle, weapon.bulletSpeed, weapon.damage, true,
     ));
+    // Muzzle flash: a bright spark at the barrel so the shot reads.
+    game.particles.push({
+      x: player.x + Math.cos(angle) * 22, y: player.y + Math.sin(angle) * 22,
+      vx: 0, vy: 0, life: 0.12, maxLife: 0.12, color: '#fff3c4', size: 9, kind: 'spark',
+    });
     game.audio.shot();
     if (game.wanted < 1) addWanted(game, 1);
   }

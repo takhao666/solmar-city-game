@@ -3,7 +3,7 @@
 // so the street stays busy without the simulation growing forever.
 
 import { clamp, dist, mulberry32, pick } from './util.js';
-import { WORLD, randomSidewalkPoint } from './city.js';
+import { WORLD, randomSidewalkPoint, resolveBuildings } from './city.js';
 
 export const MAX_PEDESTRIANS = 90;
 
@@ -16,12 +16,14 @@ let nextPedId = 1;
  * `label` names a story character (drawn above them); `stand` keeps them in place. */
 export function makePedestrian(rng, x, y) {
   const p = x !== undefined ? { x, y } : randomSidewalkPoint(rng);
+  const jogger = rng() < 0.12; // A few Solmar folk out for a run, faster than a stroll.
   return {
     id: nextPedId,
     x: p.x,
     y: p.y,
     angle: rng() * Math.PI * 2,
-    speed: 28 + rng() * 26,
+    speed: jogger ? 68 + rng() * 26 : 28 + rng() * 26,
+    jogger,
     radius: 11,
     shirt: pick(rng, SHIRT_COLORS),
     skin: pick(rng, SKIN_COLORS),
@@ -34,8 +36,9 @@ export function makePedestrian(rng, x, y) {
   };
 }
 
-/** Update every pedestrian: stroll, turn at random, flee from cars and gunfire. */
-export function updatePedestrians(peds, dt, rng, danger) {
+/** Update every pedestrian: stroll, turn at random, flee from cars and gunfire.
+ * `city` keeps walkers out of buildings; pass null to skip the check. */
+export function updatePedestrians(peds, dt, rng, danger, city) {
   for (const ped of peds) {
     if (ped.dead) continue;
     if (ped.stand) continue; // A named character waiting at their spot stays put.
@@ -73,6 +76,8 @@ export function updatePedestrians(peds, dt, rng, danger) {
     }
     ped.x = clamp(ped.x, 40, WORLD - 40);
     ped.y = clamp(ped.y, 40, WORLD - 40);
+    // Walkers stay on the street: never cut through a building.
+    if (city) resolveBuildings(city, ped);
   }
 }
 
@@ -103,6 +108,11 @@ export function drawPedestrian(ctx, ped, time) {
   ctx.beginPath();
   ctx.arc(0, 0, 10, 0, Math.PI * 2);
   ctx.fill();
+  // Joggers wear a white headband.
+  if (ped.jogger) {
+    ctx.fillStyle = '#f5f0e6';
+    ctx.fillRect(-4, -8, 8, 3);
+  }
   ctx.fillStyle = ped.skin;
   ctx.beginPath();
   ctx.arc(4 + bob * 0.3, 0, 6, 0, Math.PI * 2);

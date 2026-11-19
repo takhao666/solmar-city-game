@@ -21,6 +21,17 @@ export function distSq(x1, y1, x2, y2) {
   return dx * dx + dy * dy;
 }
 
+/** Smoothstep easing between 0 and 1: slow at both ends, fast in the middle. */
+export function smoothstep(t) {
+  const x = clamp(t, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
+/** A random number in [min, max) from the given rng. */
+export function randRange(rng, min, max) {
+  return min + rng() * (max - min);
+}
+
 /** Shortest signed turn from angle `from` toward angle `to`, in radians. */
 export function angleDiff(from, to) {
   let d = (to - from) % (Math.PI * 2);
@@ -92,6 +103,12 @@ export function resolveCircleRect(body, rect) {
 export function formatTime(seconds) {
   const s = Math.max(0, Math.ceil(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** A distance in world pixels as metres on the HUD (10px ≈ 1m at this scale). */
+export function formatDistance(px) {
+  const m = Math.round(Math.max(0, px) / 10);
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`;
 }
 
 /** Money as $1,234. */

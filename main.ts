@@ -5,7 +5,7 @@
 // game. Run it locally to check the hand-in before entering:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -19,6 +19,23 @@ mkdirSync(join(out, 'screenshots'), { recursive: true });
 if (existsSync(join(here, 'screenshots'))) {
   cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
 }
+
+// Refuse a hand-in with no screenshots: the judge reads the game through them.
+const shotFiles = readdirSync(join(out, 'screenshots')).filter((f) => !f.startsWith('.'));
+if (shotFiles.length < 3 || shotFiles.length > 4) {
+  throw new Error(`expected 3 or 4 screenshots, found ${shotFiles.length}`);
+}
+
+// Count the game files, so the run log says what was handed in.
+let gameFiles = 0;
+const walk = (dir) => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) walk(join(dir, entry.name));
+    else gameFiles += 1;
+  }
+};
+walk(join(out, 'game'));
+console.log(`Solmar City: ${gameFiles} game files, ${shotFiles.length} screenshots -> ${out}`);
 
 // The scorer's own caps, from the kit's reference/gate.json: the text cap shapes the
 // dossier's bytes, the rest refuse an entry the scorer would refuse — more than 4

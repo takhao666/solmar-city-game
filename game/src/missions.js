@@ -18,12 +18,12 @@ export function missionList(game) {
     {
       id: 'first-fare',
       title: '1. First Fare',
-      briefing: 'Vera needs a driver. Pick up the client at the marina road and drop him at the bank. No trouble, no heat.',
+      briefing: 'Vera needs a driver. Pick up Lena at the marina road and drop her at the bank. No trouble, no heat.',
       reward: 150,
       unlock: 'pistol',
       stages: [
-        { type: 'goto', label: 'Pick up the client', x: marina.x - 260, y: marina.y - 120, radius: 70 },
-        { type: 'goto', label: 'Drop the client at Solmar Bank', x: bank.x, y: bank.y - 130, radius: 80 },
+        { type: 'goto', label: 'Pick up Lena', x: marina.x - 260, y: marina.y - 120, radius: 70 },
+        { type: 'goto', label: 'Drop Lena at Solmar Bank', x: bank.x, y: bank.y - 130, radius: 80 },
       ],
     },
     {
@@ -192,11 +192,15 @@ export function updateMission(game, dt) {
 function completeStage(game) {
   const mission = game.mission;
   game.audio.cash();
+  const doneLabel = mission.stage ? mission.stage.label : '';
   mission.stageIndex += 1;
   if (mission.stageIndex >= mission.def.stages.length) {
     return completeMission(game);
   }
   beginStage(game);
+  // A banner for the step just finished, so progress is visible mid-mission.
+  mission.message = doneLabel ? `${doneLabel} — done. ${mission.stage.label}` : mission.stage.label;
+  mission.messageTimer = 3.5;
   return 'stage';
 }
 

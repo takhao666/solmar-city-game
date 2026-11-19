@@ -88,7 +88,7 @@ function snapToRoad(game, car) {
  * drive: the player cruises the marina waterfront road, traffic ahead, boats behind.
  * chase: wanted level 4, four cruisers trailing the speeding player in formation.
  * mission: the Rival Turf shootout, mid-firefight, tracers in the air.
- * marina: the First Fare pickup — the taxi, the waiting client, the marina behind.
+ * marina: the First Fare pickup — the taxi, Lena waiting, the marina behind.
  */
 export function stageShot(name, game, stepWorld) {
   game.resetWorld();
@@ -123,6 +123,8 @@ export function stageShot(name, game, stepWorld) {
     stageTrafficCar(game, marina.x - 240, marina.y - 18, Math.PI, 200);
     stageTrafficCar(game, marina.x - 420, marina.y - 18, Math.PI, 215);
     stageTrafficCar(game, marina.x + 520, marina.y + 18, 0, 190);
+    // One more car crossing the junction ahead, so the waterfront feels used.
+    stageTrafficCar(game, marina.x + 240, marina.y + 182, Math.PI / 2, 150);
     sprinkleSidewalkPeds(game, marina.y, marina.x + 50, 6);
     return 'play';
   }
@@ -146,6 +148,8 @@ export function stageShot(name, game, stepWorld) {
       const px = -fy;
       const py = fx;
       clearAround(game, playerCar.x, playerCar.y, 170, new Set([playerCar]));
+      // The chase is at speed: the speedometer should read the pursuit, not 0.
+      playerCar.speed = 300;
       for (let i = 0; i < 4; i += 1) {
         const back = 150 + i * 115;
         const side = (i % 2 === 0 ? 34 : -34) + (i - 1.5) * 8;
@@ -157,8 +161,19 @@ export function stageShot(name, game, stepWorld) {
         cruiser.maxSpeed = 380;
         cruiser.accel = 320;
         cruiser.speed = playerCar.speed;
+        cruiser.sirenPhase = i * 1.3; // Staggered flash: the pursuit lights alternate.
         snapToRoad(game, cruiser);
         game.cars.push(cruiser);
+      }
+      // Tyre smoke off the player's rear wheels: the chase is mid-slide.
+      const bx = playerCar.x - Math.cos(playerCar.angle) * 20;
+      const by = playerCar.y - Math.sin(playerCar.angle) * 20;
+      for (let s = 0; s < 5; s += 1) {
+        game.particles.push({
+          x: bx - Math.cos(playerCar.angle) * s * 12 + (game.rng() - 0.5) * 14,
+          y: by - Math.sin(playerCar.angle) * s * 12 + (game.rng() - 0.5) * 14,
+          vx: 0, vy: 0, life: 0.5, maxLife: 0.5, color: '#c8c8c8', size: 7, kind: 'burst',
+        });
       }
     }
     return 'play';
@@ -236,9 +251,9 @@ export function stageShot(name, game, stepWorld) {
       game.camera.y = playerCar.y;
     }
     clearAround(game, marina.x - 150, marina.y - 18, 220, new Set([playerCar]));
-    // The client waits on the sidewalk beside the mission's pickup point.
+    // Lena waits on the sidewalk beside the mission's pickup point.
     const client = makePedestrian(game.rng, marina.x + marina.w / 2 - 260, marina.y - 61);
-    client.label = 'CLIENT';
+    client.label = 'LENA';
     client.stand = true;
     client.shirt = '#e8c33a';
     game.peds.push(client);

@@ -99,6 +99,7 @@ export function maintainPolice(game, rng, dt) {
 export function updatePoliceCar(car, game, dt) {
   const player = game.player;
   const target = player.inCar ? player.car : player;
+  car.sirenPhase = (car.sirenPhase || 0) + dt * 7; // The lightbar flashes while pursuing.
   const want = angleTo(car.x, car.y, target.x, target.y);
   car.angle += clamp(angleDiff(car.angle, want), -2.4 * dt, 2.4 * dt);
   const d = dist(car.x, car.y, target.x, target.y);
@@ -111,13 +112,26 @@ export function updatePoliceCar(car, game, dt) {
   if (d < 70) game.lastSeen = { x: player.x, y: player.y };
 }
 
-/** A foot officer runs at the player and deals small contact damage on a cooldown. */
+/** A foot officer runs at the player and deals small contact damage on a cooldown.
+ * Officers step aside for a fast car instead of standing in its path. */
 export function updateOfficer(officer, game, dt) {
   const player = game.player;
   officer.hitCooldown -= dt;
   const d = dist(officer.x, officer.y, player.x, player.y);
   if (player.inCar) {
-    // On foot officers cannot catch a car; they hold their ground and radio it in.
+    // A fast car bearing down: dodge sideways, then hold ground and radio it in.
+    for (const car of game.cars) {
+      if (car.dead || Math.abs(car.speed) < 100) continue;
+      const cd = dist(car.x, car.y, officer.x, officer.y);
+      if (cd < 130) {
+        const side = car.angle + Math.PI / 2;
+        officer.x += Math.cos(side) * 170 * dt;
+        officer.y += Math.sin(side) * 170 * dt;
+        officer.x = clamp(officer.x, 60, WORLD - 60);
+        officer.y = clamp(officer.y, 60, WORLD - 60);
+        break;
+      }
+    }
     return;
   }
   officer.angle = angleTo(officer.x, officer.y, player.x, player.y);

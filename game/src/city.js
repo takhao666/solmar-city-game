@@ -2,12 +2,14 @@
 // parks and the marina, plus the collision and drawing helpers for the map.
 // The city is deterministic for a seed, so a screenshot seed always replays the same streets.
 
-import { clamp, mulberry32, pick, circleHitsRect } from './util.js';
+import { clamp, mulberry32, pick, randRange, circleHitsRect } from './util.js';
 
 export const WORLD = 4860;
 export const ROAD_WIDTH = 100;
 export const GRID = 540;
 export const ROAD_COUNT = 9;
+/** The beach strip along the south edge: sand, walkable, no buildings. */
+export const BEACH_Y = 4620;
 
 const BUILDING_COLORS = [
   '#c9a37e', '#b98d6b', '#a8b6c4', '#8fa3b8', '#d6b48c',
@@ -52,7 +54,16 @@ export function buildCity(seed) {
   const buildings = [];
   const parks = [];
   const landmarks = [];
+  const palms = [];
+  const lamps = [];
 
+  // Street lamps at every intersection corner, so the grid reads at night as well as day.
+  for (const cx of centres) {
+    for (const cy of centres) {
+      lamps.push({ x: cx - ROAD_WIDTH / 2 - 8, y: cy - ROAD_WIDTH / 2 - 8 });
+      lamps.push({ x: cx + ROAD_WIDTH / 2 + 8, y: cy + ROAD_WIDTH / 2 + 8 });
+    }
+  }
   for (let bx = 0; bx < ROAD_COUNT - 1; bx += 1) {
     for (let by = 0; by < ROAD_COUNT - 1; by += 1) {
       const x0 = centres[bx] + ROAD_WIDTH / 2 + 26;
@@ -111,7 +122,29 @@ export function buildCity(seed) {
     }
   }
 
-  return { seed, centres, buildings, parks, landmarks };
+  // Palm trees along the marina promenade and the beachfront, so the
+  // waterfront reads as a waterfront instead of bare water.
+  for (let i = 0; i < 12; i += 1) {
+    palms.push({
+      x: 4050 + 30 + i * 34 + randRange(rng, -8, 8),
+      y: 4050 - 34 + randRange(rng, -6, 6),
+      r: 11 + rng() * 5,
+    });
+  }
+  for (let i = 0; i < 16; i += 1) {
+    palms.push({
+      x: 200 + i * 290 + randRange(rng, -30, 30),
+      y: BEACH_Y + 60 + randRange(rng, 0, 120),
+      r: 11 + rng() * 5,
+    });
+  }
+
+  return { seed, centres, buildings, parks, landmarks, palms, lamps };
+}
+
+/** True when the point is on the beach strip (sand, walkable, no buildings). */
+export function isBeach(x, y) {
+  return y >= BEACH_Y && y <= WORLD && x >= 0 && x <= WORLD;
 }
 
 /** Find a landmark by name. */
@@ -228,6 +261,40 @@ export function drawCity(ctx, city, cam, viewW, viewH) {
   // Sun-baked ground.
   ctx.fillStyle = '#c8b28a';
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+
+  // The beach: pale sand along the south edge, with a darker wet band at the water.
+  if (BEACH_Y < y1 && WORLD > y0) {
+    ctx.fillStyle = '#e8d5a4';
+    ctx.fillRect(x0, BEACH_Y, x1 - x0, WORLD - BEACH_Y);
+    ctx.fillStyle = '#d9c48c';
+    ctx.fillRect(x0, BEACH_Y, x1 - x0, 10);
+    ctx.fillStyle = '#7fb3c8';
+    ctx.fillRect(x0, WORLD - 26, x1 - x0, 26);
+  }
+
+  // Palm trees on the promenade and the beachfront.
+  for (const palm of city.palms || []) {
+    if (palm.x < x0 || palm.x > x1 || palm.y < y0 || palm.y > y1) continue;
+    ctx.fillStyle = '#6b4a2f';
+    ctx.fillRect(palm.x - 2, palm.y - 4, 4, 12);
+    ctx.fillStyle = '#4e7d46';
+    ctx.beginPath();
+    ctx.arc(palm.x, palm.y - 6, palm.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#6aa356';
+    ctx.beginPath();
+    ctx.arc(palm.x - 3, palm.y - 9, palm.r * 0.65, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Street lamps: a dark post and a warm head at every intersection corner.
+  for (const lamp of city.lamps || []) {
+    if (lamp.x < x0 || lamp.x > x1 || lamp.y < y0 || lamp.y > y1) continue;
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fillRect(lamp.x - 2, lamp.y - 2, 4, 4);
+    ctx.fillStyle = '#ffd76a';
+    ctx.fillRect(lamp.x - 3, lamp.y - 3, 6, 2);
+  }
 
   // Parks.
   for (const park of city.parks) {

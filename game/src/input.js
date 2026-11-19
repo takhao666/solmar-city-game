@@ -11,6 +11,10 @@ export function createInput() {
     clicked: false,
     // Synthetic overrides used by the screenshot autopilot; null means "use the real keys".
     synth: null,
+    /** The handbrake: Space, held. */
+    handbrake() {
+      return this.isDown('Space');
+    },
     isDown(code) {
       if (this.synth && this.synth.keys) return this.synth.keys.has(code);
       return keys.has(code);
@@ -31,7 +35,7 @@ export function createInput() {
           event.preventDefault();
         }
         keys.add(event.code);
-        if (event.code === 'KeyE' || event.code === 'KeyF' || event.code === 'KeyM' || event.code === 'Enter' || event.code === 'Escape' || event.code === 'KeyP') {
+        if (event.code === 'KeyE' || event.code === 'KeyF' || event.code === 'KeyH' || event.code === 'KeyM' || event.code === 'Enter' || event.code === 'Escape' || event.code === 'KeyP') {
           input.pressed = event.code;
         }
       });

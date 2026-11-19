@@ -2,9 +2,11 @@
 // Nothing here touches the network; a missing or corrupt save simply starts fresh.
 
 const SAVE_KEY = 'solmar-city-save-v1';
+const SAVE_VERSION = 1;
 
 export function defaultSave() {
   return {
+    version: SAVE_VERSION,
     money: 0,
     missionIndex: 0,
     weapons: ['fists'],
@@ -35,7 +37,11 @@ export function loadSave() {
 
 export function writeSave(save) {
   try {
-    const copy = { ...save, savedAt: Date.now() };
+    // Best money is a high-water mark: it only ever climbs.
+    const copy = { ...save, savedAt: Date.now(), version: SAVE_VERSION };
+    if (typeof copy.money === 'number') {
+      copy.bestMoney = Math.max(copy.bestMoney || 0, copy.money);
+    }
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(copy));
     return true;
   } catch (err) {

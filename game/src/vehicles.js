@@ -23,6 +23,8 @@ export function makeCar(x, y, angle, color, kind) {
     maxSpeed: 320,
     accel: 260,
     steer: 2.6,
+    braking: false, // Lit brake lights while slowing.
+    sirenPhase: 0, // Police lightbar flash, advanced by updatePoliceCar.
     driver: null, // 'player' when the player is driving this car
     dead: false,
   };
@@ -69,6 +71,7 @@ export function updateTrafficCar(car, dt, cars, rng) {
     const side = Math.abs((other.x - car.x) * -Math.sin(car.angle) + (other.y - car.y) * Math.cos(car.angle));
     if (ahead > 0 && ahead < 110 && side < 30) { targetSpeed = 0; break; }
   }
+  car.braking = targetSpeed < car.speed - 25; // Brake lights while shedding speed.
   car.speed += clamp(targetSpeed - car.speed, -260 * dt, 140 * dt);
   car.x += Math.cos(car.angle) * car.speed * dt;
   car.y += Math.sin(car.angle) * car.speed * dt;
@@ -89,16 +92,25 @@ export function updateTrafficCar(car, dt, cars, rng) {
   if (car.y > WORLD - 60) { car.y = WORLD - 60; car.angle = -car.angle; }
 }
 
-/** The player's car: arcade steering, building collisions, and a bump when it hits traffic. */
+/** The player's car: arcade steering, a Space handbrake for slides, building
+ * collisions, and a bump when it hits traffic. Returns { crashed, speed, skidding }. */
 export function updatePlayerCar(car, input, dt, city) {
   const axis = input.axis();
   const forward = axis.y < 0 ? 1 : axis.y > 0 ? -0.55 : 0;
   const throttle = forward !== 0 ? forward : (input.isDown('ShiftLeft') || input.isDown('ShiftRight') ? 0.35 : 0);
+  const handbrake = typeof input.handbrake === 'function' ? input.handbrake() : false;
   car.speed += throttle * car.accel * dt;
   if (forward === 0) car.speed -= car.speed * 1.6 * dt; // Rolling drag.
+  let skidding = false;
+  if (handbrake && Math.abs(car.speed) > 40) {
+    // Handbrake: bleed speed fast and let the tail step out.
+    car.speed -= car.speed * 3.2 * dt;
+    skidding = Math.abs(car.speed) > 150;
+  }
   car.speed = clamp(car.speed, -140, car.maxSpeed);
   const steerInput = axis.x;
-  const steerAmount = steerInput * car.steer * dt * clamp(Math.abs(car.speed) / 120, 0, 1) * (car.speed < 0 ? -1 : 1);
+  const steerBoost = skidding ? 1.7 : 1; // A sliding car turns harder.
+  const steerAmount = steerInput * car.steer * steerBoost * dt * clamp(Math.abs(car.speed) / 120, 0, 1) * (car.speed < 0 ? -1 : 1);
   car.angle += steerAmount;
   const prevX = car.x;
   const prevY = car.y;
@@ -106,14 +118,15 @@ export function updatePlayerCar(car, input, dt, city) {
   car.y += Math.sin(car.angle) * car.speed * dt;
   car.x = clamp(car.x, 50, WORLD - 50);
   car.y = clamp(car.y, 50, WORLD - 50);
+  car.braking = handbrake || forward < 0;
   if (resolveBuildings(city, car)) {
     // A hard hit: kill most of the speed and spark a crash.
     const hitSpeed = Math.abs(car.speed);
     car.speed *= 0.35;
-    if (hitSpeed > 200) return { crashed: true, speed: hitSpeed };
+    if (hitSpeed > 200) return { crashed: true, speed: hitSpeed, skidding };
   }
   if (prevX === car.x && prevY === car.y && Math.abs(car.speed) > 240) car.speed *= 0.5;
-  return { crashed: false, speed: Math.abs(car.speed) };
+  return { crashed: false, speed: Math.abs(car.speed), skidding };
 }
 
 /** Push two overlapping cars apart and trade a little speed. */
@@ -184,13 +197,25 @@ export function drawCar(ctx, car) {
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.fillRect(20, -8, 3, 4);
   ctx.fillRect(20, 4, 3, 4);
+  // Brake lights: a red glow at the rear while slowing.
+  if (car.braking) {
+    ctx.fillStyle = 'rgba(255,40,40,0.9)';
+    ctx.fillRect(-24, -9, 3, 5);
+    ctx.fillRect(-24, 4, 3, 5);
+  }
   if (car.kind === 'police') {
     ctx.fillStyle = '#e8e8e8';
     ctx.fillRect(-2, -11, 8, 22);
-    ctx.fillStyle = '#d94f3d';
-    ctx.fillRect(-1, -11, 3, 5);
-    ctx.fillStyle = '#3d7dd9';
-    ctx.fillRect(-1, 6, 3, 5);
+    // Flashing lightbar: red and blue alternate with the siren phase.
+    const phase = (car.sirenPhase || 0) % (Math.PI * 2);
+    ctx.fillStyle = phase < Math.PI ? '#ff3b30' : '#3d7dd9';
+    ctx.beginPath();
+    ctx.arc(-1, -8, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = phase < Math.PI ? '#3d7dd9' : '#ff3b30';
+    ctx.beginPath();
+    ctx.arc(-1, 8, 4.5, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }

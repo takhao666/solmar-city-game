@@ -14,7 +14,11 @@ import { missionMarker } from './missions.js';
 export function drawWorld(ctx, game, viewW, viewH) {
   const cam = game.camera;
   ctx.save();
-  ctx.translate(viewW / 2 - cam.x, viewH / 2 - cam.y);
+  // Screen shake: a crash or a hard hit kicks the view a few pixels.
+  const shake = game.shake || 0;
+  const shX = shake > 0 ? (Math.random() - 0.5) * shake : 0;
+  const shY = shake > 0 ? (Math.random() - 0.5) * shake : 0;
+  ctx.translate(viewW / 2 - cam.x + shX, viewH / 2 - cam.y + shY);
 
   drawCity(ctx, game.city, cam, viewW, viewH);
 
@@ -108,4 +112,6 @@ export function updateCamera(game, dt) {
   const k = 1 - Math.pow(0.001, dt);
   game.camera.x += (tx - game.camera.x) * k;
   game.camera.y += (ty - game.camera.y) * k;
+  // Shake decays fast: a kick, not a wobble.
+  if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
 }

@@ -2,7 +2,7 @@
 // objective, the weapon readout, the start screen, pause, game over and the win screen.
 // Everything is drawn on the canvas so the screenshots show the real interface.
 
-import { clamp, formatMoney, formatTime } from './util.js';
+import { clamp, formatDistance, formatMoney, formatTime } from './util.js';
 import { WORLD } from './city.js';
 import { missionMarker, objectiveText } from './missions.js';
 import { MAX_WANTED } from './police.js';
@@ -55,8 +55,12 @@ export function drawHUD(ctx, game, viewW, viewH) {
   if (stars > 0) ctx.fillText(stars >= 3 ? 'THE WHOLE DEPARTMENT IS AFTER YOU' : 'WANTED — break line of sight to cool off', viewW / 2, 64);
   ctx.textAlign = 'left';
 
-  // Bottom-centre: mission objective.
-  const objective = objectiveText(game);
+  // Bottom-centre: mission objective, with the distance to the marker.
+  let objective = objectiveText(game);
+  const marker = missionMarker(game);
+  if (marker) {
+    objective += `  ·  ${formatDistance(Math.hypot(marker.x - player.x, marker.y - player.y))}`;
+  }
   ctx.font = 'bold 16px sans-serif';
   const ow = ctx.measureText(objective).width;
   ctx.fillStyle = 'rgba(10,10,14,0.62)';
@@ -71,7 +75,24 @@ export function drawHUD(ctx, game, viewW, viewH) {
   // Bottom-left: controls hint.
   ctx.fillStyle = 'rgba(245,237,216,0.75)';
   ctx.font = '12px sans-serif';
-  ctx.fillText('WASD move · E enter/exit car · F punch · Click shoot · Shift sprint · P pause · M next job', 16, viewH - 14);
+  ctx.fillText('WASD move · E enter/exit car · F punch · Click shoot · Shift sprint · Space handbrake · H horn · P pause · M next job', 16, viewH - 14);
+
+  // Bottom-right: speedometer while driving.
+  if (player.inCar && player.car) {
+    const mph = Math.round(Math.abs(player.car.speed) * 0.16);
+    ctx.fillStyle = 'rgba(10,10,14,0.62)';
+    ctx.beginPath();
+    ctx.roundRect(viewW - 118, viewH - 64, 104, 50, 10);
+    ctx.fill();
+    ctx.fillStyle = '#ffd76a';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(mph), viewW - 58, viewH - 28);
+    ctx.fillStyle = '#f5edd8';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('MPH', viewW - 24, viewH - 28);
+    ctx.textAlign = 'left';
+  }
 
   // Mission briefing banner, fading after a few seconds.
   if (game.mission && game.mission.messageTimer > 0) {

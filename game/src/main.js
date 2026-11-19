@@ -56,6 +56,9 @@ export function createGame(seed) {
     viewW: 1280,
     viewH: 720,
     frozen: false,
+    shake: 0, // Screen-shake kick, set by crashes and hard hits.
+    stats: { shotsFired: 0, carsStolen: 0, crashes: 0 }, // This session's tally.
+    lastShotSeen: -99,
   };
   game.player.money = save.money;
   if (save.weapons.includes('smg')) {
@@ -100,6 +103,7 @@ export function resetWorld(game) {
   game.mission = null;
   game.failReason = '';
   game.pendingRestart = null;
+  game.shake = 0;
   game.camera = { x: SPAWN.x, y: SPAWN.y };
   game.screen = 'play';
   for (let i = 0; i < 20; i += 1) {
@@ -143,6 +147,13 @@ export function stepWorld(game, dt) {
   if (pressed === 'KeyM' && !game.mission && !game.pendingRestart) {
     startMission(game, game.save.missionIndex);
   }
+  if (pressed === 'KeyH' && player.inCar) game.audio.horn();
+  // Count shots and stolen cars for this session's tally.
+  if (Number.isFinite(player.lastShotAt) && player.lastShotAt !== game.lastShotSeen) {
+    game.lastShotSeen = player.lastShotAt;
+    game.stats.shotsFired += 1;
+  }
+  const wasInCar = player.inCar;
 
   // The player, on foot or driving.
   if (player.inCar && player.car) {
@@ -152,7 +163,16 @@ export function stepWorld(game, dt) {
     player.angle = player.car.angle;
     if (result.crashed) {
       game.audio.crash();
+      game.shake = 12; // A hard crash kicks the camera.
+      game.stats.crashes += 1;
       game.particles.push({ x: player.x, y: player.y, vx: 0, vy: 0, life: 0.3, maxLife: 0.3, color: '#ffd76a', size: 10, kind: 'spark' });
+    }
+    if (result.skidding) {
+      game.audio.skid();
+      // Tyre smoke off the rear wheels while the handbrake is down.
+      const bx = player.car.x - Math.cos(player.car.angle) * 20;
+      const by = player.car.y - Math.sin(player.car.angle) * 20;
+      game.particles.push({ x: bx, y: by, vx: 0, vy: 0, life: 0.5, maxLife: 0.5, color: '#c8c8c8', size: 7, kind: 'burst' });
     }
     game.audio.engine(clamp(Math.abs(player.car.speed) / player.car.maxSpeed, 0, 1), true);
     if (pressed === 'KeyE') exitCar(game);
@@ -161,7 +181,10 @@ export function stepWorld(game, dt) {
     updatePlayerOnFoot(game, input, dt, game.camera);
     input.pressed = null;
     game.audio.engine(0, false);
-    if (pressed === 'KeyE') tryEnterCar(game);
+    if (pressed === 'KeyE') {
+      tryEnterCar(game);
+      if (!wasInCar && player.inCar) game.stats.carsStolen += 1;
+    }
   }
   input.clicked = false; // The player update has read the click (or dropped it).
 
@@ -204,7 +227,7 @@ export function stepWorld(game, dt) {
   if (game.time - (player.lastShotAt || -99) < 1.5) {
     danger.push({ x: player.x, y: player.y, radius: 220 });
   }
-  updatePedestrians(game.peds, dt, game.rng, danger);
+  updatePedestrians(game.peds, dt, game.rng, danger, game.city);
   maintainPedestrians(game.peds, game.rng, game.camera.x, game.camera.y);
   maintainTraffic(game.cars, game.rng, game.camera.x, game.camera.y, 30);
 
@@ -252,6 +275,10 @@ export function boot(canvas) {
   resize();
   game.input.attach(canvas);
   game.audio.ensure();
+  // Losing the window mid-game pauses: no cheap deaths while tabbed away.
+  window.addEventListener('blur', () => {
+    if (game.screen === 'play') game.screen = 'paused';
+  });
 
   if (shot) {
     // Screenshot mode: stage one frozen frame and never step again.
